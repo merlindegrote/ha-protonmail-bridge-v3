@@ -6,45 +6,44 @@ FROM $BUILD_FROM
 
 # ProtonMail Bridge version
 ARG PMB_VERSION="3.22.0"
+ARG BUILD_ARCH
 
 # Runtime files
 COPY run.sh /
 
 # Install ProtonMail Bridge using official pre-built binaries
-# amd64: uses official .deb package
+# amd64: uses official .deb package (pre-built binary)
 # aarch64 / armv7: compile from source (no official arm binary available)
-RUN apk add --no-cache \
-    # Needed to extract .deb on Alpine
-    dpkg \
-    # For socat port forwarding
-    socat \
-    # Shared libs needed by bridge binary
-    gcompat \
-    libsecret \
-    libc6-compat \
-    ca-certificates \
-    # For keychain/pass (secret storage)
-    pass \
-    gnupg \
-    coreutils \
-    && mkdir -p /protonmail \
+RUN mkdir -p /protonmail \
+    && apk add --no-cache \
+        socat \
+        ca-certificates \
+        gnupg \
+        coreutils \
+        libgcc \
     && ARCH=$(uname -m) \
     && if [ "$ARCH" = "x86_64" ]; then \
-        echo "Downloading official ProtonMail Bridge amd64 .deb for v${PMB_VERSION}" \
+        echo "amd64: Installing dependencies for pre-built binary" \
+        && apk add --no-cache \
+            dpkg \
+            gcompat \
+            libsecret \
+            libc6-compat \
+            pass \
+        && echo "Downloading official ProtonMail Bridge amd64 .deb for v${PMB_VERSION}" \
         && wget -q -O /tmp/bridge.deb \
             "https://github.com/ProtonMail/proton-bridge/releases/download/v${PMB_VERSION}/protonmail-bridge_${PMB_VERSION}-1_amd64.deb" \
         && dpkg -x /tmp/bridge.deb /tmp/bridge-extracted \
         && cp /tmp/bridge-extracted/usr/bin/bridge /protonmail/proton-bridge \
         && rm -rf /tmp/bridge.deb /tmp/bridge-extracted; \
     elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "armv7l" ] || [ "$ARCH" = "armhf" ]; then \
-        echo "No official arm binary available - building from source for ${ARCH}" \
+        echo "${ARCH}: No official arm binary - building from source" \
         && apk add --no-cache --virtual .build-deps \
             go \
             git \
             make \
             gcc \
             musl-dev \
-            libsecret-dev \
         && git clone --depth=1 --branch "v${PMB_VERSION}" \
             https://github.com/ProtonMail/proton-bridge.git /tmp/proton-bridge \
         && cd /tmp/proton-bridge \
@@ -58,13 +57,9 @@ RUN apk add --no-cache \
     fi \
     && chmod +x /protonmail/proton-bridge \
     && chmod +x /run.sh \
-    # Persistent data directory symlinks (stored in /data which is mapped by HA add-on)
-    && mkdir -p /data \
-    && ln -sf /data/.cache /root/.cache \
-    && ln -sf /data/.gnupg /root/.gnupg \
-    && ln -sf /data/.password-store /root/.password-store \
-    && ln -sf /data/.config /root/.config \
-    && ln -sf /data/.local /root/.local
+    # Create persistent data directory stubs (symlinked to /data on first run)
+    && mkdir -p /root/.config /root/.local /root/.cache /root/.gnupg /root/.password-store \
+    && chmod 700 /root/.gnupg /root/.password-store
 
 # Expose SMTP and IMAP ports
 # ProtonMail Bridge v3.x uses port 1025 (SMTP) and 1143 (IMAP) internally
