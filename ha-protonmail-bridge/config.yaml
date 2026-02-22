@@ -9,7 +9,6 @@ startup: system
 arch:
     - aarch64
     - amd64
-    - armv7
 auth_api: true
 ports:
     25/tcp: 25
