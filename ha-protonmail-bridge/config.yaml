@@ -10,6 +10,7 @@ arch:
     - aarch64
     - amd64
     - armv7
+image: ghcr.io/merlindegrote/ha-protonmail-bridge-v3/{arch}:latest
 auth_api: true
 ports:
     25/tcp: 25
