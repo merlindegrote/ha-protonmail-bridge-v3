@@ -1,72 +1,93 @@
 ARG BUILD_FROM
+ARG BUILD_ARCH
+
 # Runtime image provided by Home Assistant
 FROM $BUILD_FROM
 
-# Build files
-WORKDIR /build/
-COPY build.sh /build/
+# ProtonMail Bridge version
+ARG PMB_VERSION="3.22.0"
+
 # Runtime files
-COPY gpgparams /protonmail/
-COPY run.sh  /
-COPY src/* /src/
+COPY run.sh /
 
-RUN apk add --no-cache --virtual .build-dependencies \
-    # build depenencies
-    go=1.16.10-r0 \
-    git=2.32.0-r0 \
-    make=4.3-r0 \
-    libsecret-dev=0.20.4-r1 \
-    gcc=10.3.1_git20210424-r2 \
-    musl-dev=1.2.2-r3 \
-    \
-    # Run build script
-    && bash build.sh \
-    \
-    ## Needed dependencies to run ProtonMail bridge ##
-    && apk add --no-cache \
-    # To control ProtonMail bridge cli
-    expect=5.45.4-r0 \
-    # To bind any port
-    socat=1.7.4.1-r1 \
-    # Needed by ProtonMail bridge
-    libsecret=0.20.4-r1 \
-    # For PGP
-    pass=1.7.4-r0 \
-    # For having nanoseconds resolution with date command
-    coreutils=8.32-r2 \
-    \ 
-    # Keep built binary
-    && cp /build/proton-bridge/Desktop-Bridge /protonmail/proton-bridge \
-    \
-    # Some links and rights needed
-    && chmod +x /run.sh \
-    && chmod +x /src/* \
-    && ln -s /data/.cache /root/.cache \
-    && ln -s /data/.gnupg /root/.gnupg \
-    && ln -s /data/.password-store /root/.password-store \
-    && ln -s /data/.config /root/.config \
-    \
-    # Remove build related files
-    && go mod init proton-bridge \
-    && go clean -cache -modcache -i -r \
-    && apk del --no-cache --purge .build-dependencies \
-    && rm -Rf /build /tmp/*
+# Install ProtonMail Bridge using official pre-built binaries
+# amd64: uses official .deb package
+# aarch64 / armv7: compile from source (no official arm binary available)
+RUN apk add --no-cache \
+    # Needed to extract .deb on Alpine
+    dpkg \
+    # For socat port forwarding
+    socat \
+    # Shared libs needed by bridge binary
+    gcompat \
+    libsecret \
+    libc6-compat \
+    ca-certificates \
+    # For keychain/pass (secret storage)
+    pass \
+    gnupg \
+    coreutils \
+  && mkdir -p /protonmail \
+  && ARCH=$(uname -m) \
+  && if [ "$ARCH" = "x86_64" ]; then \
+    echo "Downloading official ProtonMail Bridge amd64 .deb for v${PMB_VERSION}" \
+    && wget -q -O /tmp/bridge.deb \
+       "https://github.com/ProtonMail/proton-bridge/releases/download/v${PMB_VERSION}/protonmail-bridge_${PMB_VERSION}-1_amd64.deb" \
+    && dpkg -x /tmp/bridge.deb /tmp/bridge-extracted \
+    && cp /tmp/bridge-extracted/usr/bin/bridge /protonmail/proton-bridge \
+    && rm -rf /tmp/bridge.deb /tmp/bridge-extracted; \
+  elif [ "$ARCH" = "aarch64" ]; then \
+    echo "No official arm64 binary available - building from source for aarch64" \
+    && apk add --no-cache --virtual .build-deps \
+         go \
+         git \
+         make \
+         gcc \
+         musl-dev \
+         libsecret-dev \
+    && git clone --depth=1 --branch "v${PMB_VERSION}" \
+         https://github.com/ProtonMail/proton-bridge.git /tmp/proton-bridge \
+    && cd /tmp/proton-bridge \
+    && make build-nogui \
+    && cp bridge /protonmail/proton-bridge \
+    && cd / \
+    && rm -rf /tmp/proton-bridge \
+    && apk del .build-deps; \
+  else \
+    echo "Unsupported architecture: $ARCH" && exit 1; \
+  fi \
+  && chmod +x /protonmail/proton-bridge \
+  && chmod +x /run.sh \
+  # Persistent data directory symlinks (stored in /data which is mapped by HA add-on)
+  && mkdir -p /data \
+  && ln -sf /data/.cache /root/.cache \
+  && ln -sf /data/.gnupg /root/.gnupg \
+  && ln -sf /data/.password-store /root/.password-store \
+  && ln -sf /data/.config /root/.config \
+  && ln -sf /data/.local /root/.local
 
+# Expose SMTP and IMAP ports
+# ProtonMail Bridge v3.x uses port 1025 (SMTP) and 1143 (IMAP) internally
+# socat will forward 25 -> 1025 and 143 -> 1143
 EXPOSE 25/tcp
+EXPOSE 143/tcp
+
 WORKDIR /
 
-# Set bash by default
 SHELL ["/bin/bash", "-c"]
 
-# Log timestamp format
 ENV LOG_TIMESTAMP "%F %T.%3N"
-ARG BUILD_ARCH
-ARG BUILD_VERSION
 
-LABEL io.hass.version="${BUILD_VERSION}" io.hass.type="addon" io.hass.arch="${BUILD_ARCH}" \
-    maintainer="Florian Boulay" \
-    org.opencontainers.image.authors="Florian Boulay" \
+ARG BUILD_VERSION
+LABEL \
+    io.hass.version="${BUILD_VERSION}" \
+    io.hass.type="addon" \
+    io.hass.arch="${BUILD_ARCH}" \
+    maintainer="merlindegrote (fork of fboulay)" \
+    org.opencontainers.image.title="ProtonMail Bridge v3" \
+    org.opencontainers.image.description="ProtonMail Bridge v3.x for Home Assistant - uses official pre-built binaries" \
     org.opencontainers.image.version="${BUILD_VERSION}" \
+    org.opencontainers.image.source="https://github.com/merlindegrote/ha-protonmail-bridge-v3" \
     org.opencontainers.image.licenses="MIT"
 
 CMD ["bashio", "/run.sh"]
