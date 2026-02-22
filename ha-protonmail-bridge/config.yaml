@@ -9,13 +9,14 @@ startup: system
 arch:
     - aarch64
     - amd64
+    - armv7
 auth_api: true
 ports:
     25/tcp: 25
     143/tcp: 143
 ports_description:
-    25/tcp: SMTP port (forwarded to Bridge internal port 1025)
-    143/tcp: IMAP port (forwarded to Bridge internal port 1143)
+    25/tcp: SMTP port (forwarded to hydroxide internal port 1025)
+    143/tcp: IMAP port (forwarded to hydroxide internal port 1143)
 options:
     username: null
     password: null
