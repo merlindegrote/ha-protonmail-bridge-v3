@@ -12,7 +12,7 @@ COPY run.sh /
 
 # Install ProtonMail Bridge using official pre-built binaries
 # amd64: uses official .deb package
-# aarch64: compile from source (no official arm binary available)
+# aarch64 / armv7: compile from source (no official arm binary available)
 RUN apk add --no-cache \
     # Needed to extract .deb on Alpine
     dpkg \
@@ -36,8 +36,8 @@ RUN apk add --no-cache \
         && dpkg -x /tmp/bridge.deb /tmp/bridge-extracted \
         && cp /tmp/bridge-extracted/usr/bin/bridge /protonmail/proton-bridge \
         && rm -rf /tmp/bridge.deb /tmp/bridge-extracted; \
-    elif [ "$ARCH" = "aarch64" ]; then \
-        echo "No official arm64 binary available - building from source for aarch64" \
+    elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "armv7l" ] || [ "$ARCH" = "armhf" ]; then \
+        echo "No official arm binary available - building from source for ${ARCH}" \
         && apk add --no-cache --virtual .build-deps \
             go \
             git \
