@@ -19,17 +19,15 @@ RUN mkdir -p /protonmail \
         socat \
         ca-certificates \
         gnupg \
+        gnupg-keyboxd \
+        gpg-agent \
         coreutils \
         libgcc \
+        gcompat \
+        libc6-compat \
     && ARCH=$(uname -m) \
     && if [ "$ARCH" = "x86_64" ]; then \
         echo "amd64: Installing dependencies for pre-built binary" \
-        && apk add --no-cache \
-            dpkg \
-            gcompat \
-            libsecret \
-            libc6-compat \
-            pass \
         && echo "Downloading official ProtonMail Bridge amd64 .deb for v${PMB_VERSION}" \
         && wget -q -O /tmp/bridge.deb \
             "https://github.com/ProtonMail/proton-bridge/releases/download/v${PMB_VERSION}/protonmail-bridge_${PMB_VERSION}-1_amd64.deb" \
@@ -56,10 +54,7 @@ RUN mkdir -p /protonmail \
         echo "Unsupported architecture: $ARCH" && exit 1; \
     fi \
     && chmod +x /protonmail/proton-bridge \
-    && chmod +x /run.sh \
-    # Create persistent data directory stubs (symlinked to /data on first run)
-    && mkdir -p /root/.config /root/.local /root/.cache /root/.gnupg /root/.password-store \
-    && chmod 700 /root/.gnupg /root/.password-store
+    && chmod +x /run.sh
 
 # Expose SMTP and IMAP ports
 # ProtonMail Bridge v3.x uses port 1025 (SMTP) and 1143 (IMAP) internally
