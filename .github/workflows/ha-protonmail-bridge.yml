@@ -1,88 +1,92 @@
-name: ProtonMail Bridge CI/CD
+name: Build and Push to GHCR
+
 on:
-  pull_request:
-    types: [ closed ]
   push:
-    branches-ignore:
+    branches:
       - main
+    paths:
+      - 'ha-protonmail-bridge/**'
+      - '.github/workflows/ha-protonmail-bridge.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/ha-protonmail-bridge-v3
 
 jobs:
-  push_to_registry:
-    name: Push Docker image to Docker Hub
-    if: github.event.pull_request.merged
-    runs-on: ubuntu-20.04
+  build-and-push:
+    name: Build and push Docker image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
     steps:
-      -
-        name: Check out the repo
-        uses: actions/checkout@v2
-      - 
-        name: Read config file
-        id: config_file
-        uses: juliangruber/read-file-action@v1
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
         with:
-          path: ./ha-protonmail-bridge/config.json
-      -
-        name: Login to Docker Hub
-        uses: docker/login-action@v1
+          platforms: arm,arm64,amd64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      -
-        name: Publish to Docker Hub
-        uses: home-assistant/builder@2021.01.1
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Read version from config.yaml
+        id: config
+        run: |
+          VERSION=$(grep '^version:' ha-protonmail-bridge/config.yaml | awk '{print $2}' | tr -d '"')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Build and push armv7
+        uses: docker/build-push-action@v5
         with:
-          args: |
-            --docker-hub-check \
-            --target ha-protonmail-bridge \
-            --amd64 \
-            --armv7
-      -
-        name: Update Docker Hub description armv7
-        uses: peter-evans/dockerhub-description@v2
+          context: ./ha-protonmail-bridge
+          file: ./ha-protonmail-bridge/Dockerfile
+          platforms: linux/arm/v7
+          push: true
+          build-args: |
+            BUILD_FROM=ghcr.io/home-assistant/armv7-base:3.22
+            BUILD_ARCH=armv7
+            BUILD_VERSION=${{ steps.config.outputs.version }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/armv7:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/armv7:${{ steps.config.outputs.version }}
+
+      - name: Build and push aarch64
+        uses: docker/build-push-action@v5
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
-          repository: fboulay/ha-protonmail-bridge-armv7
-          readme-filepath: ./ha-protonmail-bridge/DOCS.md
-      -
-        name: Update Docker Hub description amd64
-        uses: peter-evans/dockerhub-description@v2
+          context: ./ha-protonmail-bridge
+          file: ./ha-protonmail-bridge/Dockerfile
+          platforms: linux/arm64
+          push: true
+          build-args: |
+            BUILD_FROM=ghcr.io/home-assistant/aarch64-base:3.22
+            BUILD_ARCH=aarch64
+            BUILD_VERSION=${{ steps.config.outputs.version }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/aarch64:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/aarch64:${{ steps.config.outputs.version }}
+
+      - name: Build and push amd64
+        uses: docker/build-push-action@v5
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
-          repository: fboulay/ha-protonmail-bridge-amd64
-          readme-filepath: ./ha-protonmail-bridge/DOCS.md
-      -
-        name: Git tag
-        uses: actions/github-script@v3
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            github.git.createRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: "refs/tags/v${{ fromJSON(steps.config_file.outputs.content).version }}",
-              sha: context.sha
-            })
-  shellcheck:
-    name: Run Shellcheck
-    runs-on: ubuntu-20.04
-    steps:
-      -
-        name: Check out the repo
-        uses: actions/checkout@v2
-      - 
-        name: Run ShellCheck
-        uses: ludeeus/action-shellcheck@master
-  hadolint:
-    name: Run hadolint
-    runs-on: ubuntu-20.04
-    steps:
-      -
-        name: Check out the repo
-        uses: actions/checkout@v2
-      - 
-        name: Run hadolint
-        uses: brpaz/hadolint-action@v1.2.1
-        with:
-          dockerfile: ./ha-protonmail-bridge/Dockerfile
+          context: ./ha-protonmail-bridge
+          file: ./ha-protonmail-bridge/Dockerfile
+          platforms: linux/amd64
+          push: true
+          build-args: |
+            BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.22
+            BUILD_ARCH=amd64
+            BUILD_VERSION=${{ steps.config.outputs.version }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/amd64:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/amd64:${{ steps.config.outputs.version }}
