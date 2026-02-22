@@ -1,13 +1,21 @@
 #!/usr/bin/env bashio
 # =============================================================================
-# ProtonMail Bridge v3.x - Home Assistant Add-on run script
+# ProtonMail Bridge - Home Assistant Add-on run script (via hydroxide)
 # =============================================================================
-# Bridge v3.x uses a gRPC API for authentication and stores credentials
-# in a keystore. We use 'pass' (GPG-based) as the keystore provider,
-# which works headlessly without dbus or gnome-keyring.
+# hydroxide is a pure-Go, open-source ProtonMail bridge that works headlessly
+# on all architectures (armv7, aarch64, amd64) without needing dbus/keyring.
+# Ref: https://github.com/emersion/hydroxide
+#
+# HOW IT WORKS:
+# 1. On first start, hydroxide authenticates with your ProtonMail credentials
+#    and prints a "bridge password". This password is stored encrypted in /data.
+# 2. hydroxide then serves SMTP on port 1025 and IMAP on port 1143 locally.
+# 3. socat forwards port 25->1025 and 143->1143 for HA access.
+# 4. Use the BRIDGE PASSWORD (from the logs) in HA SMTP config - NOT your
+#    ProtonMail password.
 # =============================================================================
 
-bashio::log.info "Starting ProtonMail Bridge v3 add-on"
+bashio::log.info "Starting ProtonMail Bridge add-on (via hydroxide)"
 
 # --- Validate required config ---
 bashio::config.require username
@@ -16,84 +24,68 @@ bashio::config.require password
 USERNAME=$(bashio::config 'username')
 PASSWORD=$(bashio::config 'password')
 
-# --- Create persistent data directories ---
-mkdir -p /data/.config/protonmail/bridge
-mkdir -p /data/.local/share/protonmail/bridge
-mkdir -p /data/.cache/protonmail/bridge
-mkdir -p /data/.gnupg
-mkdir -p /data/.password-store
-chmod 700 /data/.gnupg
-chmod 700 /data/.password-store
-
-# Link persistent dirs into expected locations
+# --- Persistent data directory ---
+# hydroxide stores auth data in ~/.config/hydroxide/
+mkdir -p /data/.config/hydroxide
 export HOME=/data
-export GNUPGHOME=/data/.gnupg
-export PASSWORD_STORE_DIR=/data/.password-store
 export XDG_CONFIG_HOME=/data/.config
-export XDG_DATA_HOME=/data/.local/share
-export XDG_CACHE_HOME=/data/.cache
 
-bashio::log.info "Persistent data directories ready at /data"
+bashio::log.info "Data directory: /data/.config/hydroxide"
 
-# --- GPG key setup for 'pass' keystore ---
-# Bridge v3.x requires a keystore to store its vault password.
-# We use 'pass' with a passphrase-free GPG key, which works headlessly.
-GPG_KEY_NAME="ProtonBridge"
-GPG_KEY_ID=""
+# --- Check if already authenticated ---
+AUTH_FILE="/data/.config/hydroxide/auth"
 
-if gpg --homedir "${GNUPGHOME}" --list-keys "${GPG_KEY_NAME}" > /dev/null 2>&1; then
-    bashio::log.info "Existing GPG key found for pass keystore"
-    GPG_KEY_ID=$(gpg --homedir "${GNUPGHOME}" --list-keys --with-colons "${GPG_KEY_NAME}" \
-        | grep '^pub' | cut -d: -f5)
+if [ -f "${AUTH_FILE}" ]; then
+    bashio::log.info "Existing hydroxide auth found - starting bridge directly"
 else
-    bashio::log.info "Generating new GPG key for pass keystore (no passphrase)..."
-    gpg --homedir "${GNUPGHOME}" \
-        --batch \
-        --passphrase '' \
-        --quick-gen-key "${GPG_KEY_NAME}" \
-        default default never
-    GPG_KEY_ID=$(gpg --homedir "${GNUPGHOME}" --list-keys --with-colons "${GPG_KEY_NAME}" \
-        | grep '^pub' | cut -d: -f5)
-    bashio::log.info "GPG key generated: ${GPG_KEY_ID}"
-fi
+    bashio::log.info "No auth found - authenticating with ProtonMail..."
+    bashio::log.info "Username: ${USERNAME}"
+    bashio::log.info ""
+    bashio::log.info "Authenticating via hydroxide..."
 
-# --- Initialize pass store ---
-if [ ! -f "${PASSWORD_STORE_DIR}/.gpg-id" ]; then
-    bashio::log.info "Initializing pass store with GPG key: ${GPG_KEY_ID}"
-    pass init "${GPG_KEY_ID}"
-else
-    bashio::log.info "Pass store already initialized"
+    # hydroxide auth reads username/password and optionally 2FA from stdin
+    # Format: username\npassword\n (2FA prompt will follow if needed)
+    printf '%s\n%s\n' "${USERNAME}" "${PASSWORD}" \
+        | /protonmail/hydroxide auth "${USERNAME}" 2>&1 | tee /tmp/hydroxide_auth.log
+
+    if grep -q "bridge password" /tmp/hydroxide_auth.log 2>/dev/null; then
+        BRIDGE_PASS=$(grep "bridge password" /tmp/hydroxide_auth.log | awk '{print $NF}')
+        bashio::log.info ""
+        bashio::log.info "============================================================"
+        bashio::log.info " BRIDGE PASSWORD: ${BRIDGE_PASS}"
+        bashio::log.info " Use this password in Home Assistant SMTP config!"
+        bashio::log.info " (NOT your ProtonMail account password)"
+        bashio::log.info "============================================================"
+        bashio::log.info ""
+    else
+        bashio::log.warning "Could not extract bridge password from auth output."
+        bashio::log.warning "Check logs above for the bridge password."
+    fi
 fi
 
 # --- Port forwarding via socat ---
-# Bridge v3.x listens on 127.0.0.1:1025 (SMTP) and 127.0.0.1:1143 (IMAP)
-# socat exposes these on 0.0.0.0:25 and 0.0.0.0:143
 bashio::log.info "Starting socat port forwarders (SMTP 25->1025, IMAP 143->1143)"
 socat TCP-LISTEN:25,fork,reuseaddr TCP:127.0.0.1:1025 &
 SOCAT_SMTP_PID=$!
 socat TCP-LISTEN:143,fork,reuseaddr TCP:127.0.0.1:1143 &
 SOCAT_IMAP_PID=$!
 
-# --- Start ProtonMail Bridge ---
-bashio::log.info "Launching ProtonMail Bridge v3 (--noninteractive)"
-bashio::log.info "Username: ${USERNAME}"
-bashio::log.info ""
-bashio::log.info "IMPORTANT: On first run, Bridge initializes its vault."
-bashio::log.info "After successful start, find the Bridge SMTP password in the logs."
-bashio::log.info "Use THAT password (not your ProtonMail password) in HA SMTP config."
+# --- Start hydroxide bridge ---
+bashio::log.info "Launching hydroxide serve (SMTP + IMAP)"
+bashio::log.info "SMTP available on port 25 (->1025)"
+bashio::log.info "IMAP available on port 143 (->1143)"
 bashio::log.info ""
 
 set +o errexit
-/protonmail/proton-bridge --noninteractive 2>&1
+/protonmail/hydroxide serve 2>&1
 EXIT_CODE=$?
 
-bashio::log.error "ProtonMail Bridge exited with code: ${EXIT_CODE}"
-bashio::log.error "Check the output above for errors."
+bashio::log.error "hydroxide exited with code: ${EXIT_CODE}"
 bashio::log.error ""
 bashio::log.error "Troubleshooting:"
-bashio::log.error " 1. First run: restart the add-on once to let Bridge initialize"
-bashio::log.error " 2. Check username/password in add-on config"
-bashio::log.error " 3. 2FA accounts: create an app password in ProtonMail settings"
+bashio::log.error " 1. Wrong credentials: correct username/password in add-on config"
+bashio::log.error " 2. 2FA account: hydroxide may need interactive 2FA on first run"
+bashio::log.error " 3. Delete /data/.config/hydroxide/auth to force re-authentication"
 
 # Clean up socat
 kill ${SOCAT_SMTP_PID} ${SOCAT_IMAP_PID} 2>/dev/null || true
