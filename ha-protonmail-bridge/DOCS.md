@@ -32,10 +32,13 @@ Example add-on configuration when directly editing yaml:
 ```yaml
 username: <my_proton_mail_username>
 password: <my_proton_mail_password>
-two_factor_code: ""
+totp_code: ""
+mailbox_password: ""
 ```
 
 **Note**: _This is just an example, don't copy and paste it! Create your own!_
+
+**Nederlandse uitleg (kort)**: in de add-on configuratie vul je alleen je ProtonMail account (`username`, `password`) en eventueel een 2FA/TOTP code in. Het IMAP/SMTP bridge-wachtwoord wordt automatisch gegenereerd na de eerste login en hoef je dus niet zelf in te vullen.
 
 ### Option: `username`
 
@@ -49,7 +52,7 @@ A security check is made on the password when the addon is starting. The
 check is searching the password i the HaveIBeenPwned database. If the
 password is considered unsafe, a warning is displayed in the logs.
 
-### Option: `two_factor_code`
+### Option: `totp_code`
 
 Use it only if enabled on your ProtonMail account.
 
@@ -57,6 +60,10 @@ The management of the 2nd factor code (TOTP) is really simple and can lead to
 failed authentication. Each code has a lifespan of 30 seconds. Thus the 
 time when entering the code in the configuration, and the time when the addon 
 is started should be has short as possible.
+
+### Option: `mailbox_password`
+
+Only for ProtonMail accounts in two-password mode. Leave this empty if your account uses a single password.
 
 ## Configuring Home Assistant to send notification using ProtonMail Bridge
 

@@ -31,25 +31,15 @@ if {$username eq ""} {
 }
 
 log_user 1
-set timeout 30
+set timeout 60
+
+# Avoid clipping long lines from hydroxide output
+match_max 4096
 
 spawn /protonmail/hydroxide auth $username
 
 expect {
-    "Password:" {
-        send -- "$password\r"
-        exp_continue
-    }
-    "2FA TOTP code:" {
-        if {$totp_code ne ""} {
-            send -- "$totp_code\r"
-        } else {
-            puts "EXPECT_ERROR: 2FA TOTP required but PMTOTP env var not set"
-            exit 1
-        }
-        exp_continue
-    }
-    "Mailbox password:" {
+    -re {(?i)mailbox password:} {
         if {$mailbox_password ne ""} {
             send -- "$mailbox_password\r"
         } else {
@@ -58,21 +48,42 @@ expect {
         }
         exp_continue
     }
-    -re {[Bb]ridge password[^\n]*\n} {
-        set line $expect_out(0,string)
-        puts "BRIDGE_LINE: $line"
+    -re {(?i)(two-factor|2fa).*code:} {
+        if {$totp_code ne ""} {
+            send -- "$totp_code\r"
+        } else {
+            puts "EXPECT_ERROR: 2FA code required but PMTOTP env var not set"
+            exit 1
+        }
         exp_continue
     }
-    -re {Bridge password: ([A-Za-z0-9+/=]{20,})\r?\n} {
+    -re {(?i)password:} {
+        send -- "$password\r"
+        exp_continue
+    }
+    -re {(?i)\[8002\].*password is not correct} {
+        puts "EXPECT_ERROR: [8002] The password is not correct"
+        exit 2
+    }
+    -re {(?i)password is not correct} {
+        puts "EXPECT_ERROR: The password is not correct"
+        exit 2
+    }
+    -re {(?i)bridge password[^:\n]*: *([A-Za-z0-9+/=]{10,})} {
         set bp $expect_out(1,string)
         puts "BRIDGE_LINE: Bridge password: $bp"
+        exp_continue
+    }
+    -re {(?i)imap/smtp password[^:\n]*: *([A-Za-z0-9+/=]{10,})} {
+        set bp $expect_out(1,string)
+        puts "BRIDGE_LINE: IMAP/SMTP password: $bp"
         exp_continue
     }
     eof {
         puts "EXPECT_EOF: done"
     }
     timeout {
-        puts "EXPECT_TIMEOUT: hydroxide auth timed out after 30s"
+        puts "EXPECT_TIMEOUT: hydroxide auth timed out after 60s"
         exit 1
     }
 }

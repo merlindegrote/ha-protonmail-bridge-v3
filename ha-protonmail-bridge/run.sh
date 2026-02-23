@@ -57,32 +57,32 @@ export HOME=/data
 export XDG_CONFIG_HOME=/data/.config
 
 AUTH_FILE="/data/.config/hydroxide/auth.json"
+CRED_FILE="/data/bridge_credentials.json"
+
+FORCE_AUTH="${FORCE_AUTH:-}"
+if [ -z "${FORCE_AUTH}" ]; then
+  FORCE_AUTH=$(jq -r '.force_auth // empty' "${OPTIONS_FILE}" 2>/dev/null)
+fi
+if [ "${FORCE_AUTH}" = "true" ] || [ "${FORCE_AUTH}" = "1" ]; then
+  FORCE_AUTH=1
+else
+  FORCE_AUTH=0
+fi
+
+if [ ${FORCE_AUTH} -eq 0 ] && [ -s "${CRED_FILE}" ] && jq -e '.bridge_password' "${CRED_FILE}" >/dev/null 2>&1; then
+  echo "[$(date '+%F %T')] INFO: bridge_credentials.json found - skipping auth"
+else
+  if [ ${FORCE_AUTH} -eq 1 ]; then
+    echo "[$(date '+%F %T')] INFO: Force auth requested"
+  fi
+  echo "[$(date '+%F %T')] INFO: Running non-interactive auth..."
+  /run_auth.sh
+fi
 
 if [ -f "${AUTH_FILE}" ]; then
-  echo "[$(date '+%F %T')] INFO: Existing auth found - starting bridge directly"
+  echo "[$(date '+%F %T')] INFO: Auth file present - starting bridge"
 else
-  echo "[$(date '+%F %T')] INFO: No auth found - authenticating via expect..."
-  # Pass credentials via env vars to avoid Tcl special-character interpretation
-  AUTH_OUTPUT=$(PMPASSWORD="${PASSWORD}" PMTOTP="${TOTP_CODE}" PMMAILBOX="${MAILBOX_PASSWORD}" \
-    /auth.expect "${USERNAME}" 2>&1) || true
-  echo "[$(date '+%F %T')] INFO: Auth output:"
-  echo "${AUTH_OUTPUT}"
-  echo "---"
-  # Extract bridge password from output
-  BRIDGE_PASS=$(echo "${AUTH_OUTPUT}" | grep -i "BRIDGE_LINE" | grep -oP '(?<=password: )[A-Za-z0-9+/=]{20,}' | tail -1)
-  if [ -z "${BRIDGE_PASS}" ]; then
-    BRIDGE_PASS=$(echo "${AUTH_OUTPUT}" | grep -i "bridge password" | grep -oE '[A-Za-z0-9+/=]{20,}' | tail -1)
-  fi
-  if [ -n "${BRIDGE_PASS}" ]; then
-    echo "[$(date '+%F %T')] =================================================="
-    echo "[$(date '+%F %T')] BRIDGE PASSWORD: ${BRIDGE_PASS}"
-    echo "[$(date '+%F %T')] Use this in IMAP/SMTP clients, NOT your PM password"
-    echo "[$(date '+%F %T')] =================================================="
-  fi
-  if [ ! -f "${AUTH_FILE}" ]; then
-    echo "[$(date '+%F %T')] WARNING: Auth file not created. Check output above."
-    echo "[$(date '+%F %T')] WARNING: Starting hydroxide anyway (will need auth file)"
-  fi
+  echo "[$(date '+%F %T')] WARNING: Auth file not created. Starting hydroxide anyway"
 fi
 
 # Start socat port forwarders

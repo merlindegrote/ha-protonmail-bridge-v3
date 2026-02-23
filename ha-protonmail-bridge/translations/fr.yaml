@@ -1,11 +1,14 @@
 ---
 configuration:
   username:
-    name: nom d'utilisateur
-    description: Le nom d'utilisateur de votre compte ProtonMail
+    name: nom d'utilisateur ProtonMail
+    description: Le nom d'utilisateur ou l'adresse email de votre compte ProtonMail.
   password:
-    name: mot de passe
-    description: Votre mot de passe ProtonMail
-  two_factor_code:
-    name: code 2fa
-    description: Si activé sur votre compte, il s'agit du code 2fa pour se connecter. Il est uniquement nécessaire lors de la première configuration de cet addon.
+    name: mot de passe ProtonMail
+    description: Le mot de passe de votre compte ProtonMail. Le mot de passe IMAP/SMTP est genere automatiquement et s'affiche apres l'authentification.
+  totp_code:
+    name: code 2FA
+    description: Code 2FA/TOTP optionnel. Necessaire uniquement si la 2FA est activee sur votre compte.
+  mailbox_password:
+    name: mot de passe de la boite
+    description: Utilise uniquement en mode ProtonMail a deux mots de passe. Laissez vide en mode standard.
