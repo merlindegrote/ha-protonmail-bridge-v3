@@ -65,7 +65,22 @@ expect {
         set timeout 180
         exp_continue
     }
-    -re {(?i)password:} {
+    -ex "Password:" {
+        send -- "$password\r"
+        set timeout 180
+        exp_continue
+    }
+    -ex "Password: " {
+        send -- "$password\r"
+        set timeout 180
+        exp_continue
+    }
+    -ex "password:" {
+        send -- "$password\r"
+        set timeout 180
+        exp_continue
+    }
+    -re -nocase {password:} {
         send -- "$password\r"
         set timeout 180
         exp_continue

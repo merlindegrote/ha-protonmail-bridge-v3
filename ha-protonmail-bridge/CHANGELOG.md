@@ -38,6 +38,12 @@
 
 - Add `debug_auth` toggle and route verbose auth diagnostics to normal add-on logs
 
+## 3.22.4.005
+
+### 🐛 Bug fixes
+
+- Match the Password prompt reliably in expect to prevent auth timeouts
+
 ## 1.4.0
 
 ### 🚀 Improvements

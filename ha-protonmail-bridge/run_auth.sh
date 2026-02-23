@@ -62,7 +62,7 @@ else
 fi
 
 if [ ${DEBUG_AUTH} -eq 1 ]; then
-  log "Auth debug enabled: /data/hydroxide-auth.raw.log"
+  log "Auth debug enabled: extra details in normal add-on logs"
 fi
 
 log "Starting hydroxide auth for ${USERNAME}"
