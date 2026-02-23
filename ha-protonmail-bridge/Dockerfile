@@ -43,9 +43,10 @@ RUN apk add --no-cache \
   jq \
   expect
 
-# Copy and configure run script
+# Copy scripts
 COPY run.sh /run.sh
-RUN chmod a+x /run.sh
+COPY auth.expect /auth.expect
+RUN chmod a+x /run.sh /auth.expect
 
 # Labels
 LABEL \
@@ -56,5 +57,4 @@ LABEL \
   io.hass.version="${BUILD_VERSION}"
 
 EXPOSE 25/tcp 143/tcp
-
 CMD ["/run.sh"]
