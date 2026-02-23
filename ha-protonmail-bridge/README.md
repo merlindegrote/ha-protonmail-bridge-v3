@@ -92,3 +92,12 @@ Kort: gebruik in je mailclient het automatisch gegenereerde bridge-wachtwoord, n
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
+
+## Release / Update in Home Assistant
+
+To make Home Assistant show an update in the add-on store UI, you must bump the add-on version and push it:
+
+1. Update the version in `config.yaml`.
+2. Update [CHANGELOG.md](CHANGELOG.md) if needed.
+3. Commit and push to the repository.
+4. In Home Assistant: refresh the add-on store and install the update when it appears.
