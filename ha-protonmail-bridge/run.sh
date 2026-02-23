@@ -1,118 +1,110 @@
 #!/usr/bin/env bash
-set -o errexit
-set -o nounset
-set -o pipefail
+# ProtonMail Bridge via hydroxide - HA Add-on run script
+# All output also written to /data/debug.log for troubleshooting
 
-# =============================================================================
-# ProtonMail Bridge - Home Assistant Add-on run script (via hydroxide)
-# =============================================================================
-# hydroxide is a pure-Go, open-source ProtonMail bridge that works headlessly
-# on all architectures (armv7, aarch64, amd64) without needing dbus/keyring.
-# Ref: https://github.com/emersion/hydroxide
-#
-# HOW IT WORKS:
-# 1. On first start, hydroxide authenticates with your ProtonMail credentials
-#    and prints a "bridge password". This password is stored in /data.
-# 2. hydroxide then serves SMTP on port 1025 and IMAP on port 1143 locally.
-# 3. socat forwards port 25->1025 and 143->1143 for HA access.
-# 4. Use the BRIDGE PASSWORD (from the logs) in HA SMTP config - NOT your
-#    ProtonMail password.
-# =============================================================================
+DEBUG_LOG="/data/debug.log"
+exec > >(tee -a "${DEBUG_LOG}") 2>&1
 
-log() { echo "[$(date '+%F %T')] $*" 1>&2; }
-log_info() { log "INFO: $*"; }
-log_warning() { log "WARNING: $*"; }
-log_error() { log "ERROR: $*"; }
+echo "[$(date '+%F %T')] === Starting ProtonMail Bridge add-on ==="
 
-log_info "Starting ProtonMail Bridge add-on (via hydroxide)"
-
-# --- Read config from /data/options.json (HA standard location) ---
+# --- Read config ---
 OPTIONS_FILE="/data/options.json"
 if [ ! -f "${OPTIONS_FILE}" ]; then
-    log_error "/data/options.json not found! Cannot read configuration."
-    exit 1
+  echo "[$(date '+%F %T')] ERROR: /data/options.json not found!"
+  ls -la /data/ || true
+  exit 1
 fi
 
+echo "[$(date '+%F %T')] INFO: /data/options.json exists:"
+cat "${OPTIONS_FILE}"
+
+# Install jq if missing
 if ! command -v jq &>/dev/null; then
-    log_error "jq not found - installing..."
-    apk add --no-cache jq || true
+  echo "[$(date '+%F %T')] INFO: Installing jq..."
+  apk add --no-cache jq || true
 fi
 
-USERNAME=$(jq -r '.username' "${OPTIONS_FILE}" 2>/dev/null || true)
-PASSWORD=$(jq -r '.password' "${OPTIONS_FILE}" 2>/dev/null || true)
+USERNAME=$(jq -r '.username // empty' "${OPTIONS_FILE}" 2>/dev/null)
+PASSWORD=$(jq -r '.password // empty' "${OPTIONS_FILE}" 2>/dev/null)
 
-if [ -z "${USERNAME}" ] || [ "${USERNAME}" = "null" ]; then
-    log_error "username is not configured in add-on options!"
-    exit 1
+if [ -z "${USERNAME}" ]; then
+  echo "[$(date '+%F %T')] ERROR: username not configured!"
+  exit 1
 fi
-if [ -z "${PASSWORD}" ] || [ "${PASSWORD}" = "null" ]; then
-    log_error "password is not configured in add-on options!"
-    exit 1
+if [ -z "${PASSWORD}" ]; then
+  echo "[$(date '+%F %T')] ERROR: password not configured!"
+  exit 1
 fi
 
-log_info "Username: ${USERNAME}"
+echo "[$(date '+%F %T')] INFO: Username: ${USERNAME}"
+echo "[$(date '+%F %T')] INFO: Password length: ${#PASSWORD}"
 
-# --- Persistent data directory ---
-# hydroxide stores auth data in ~/.config/hydroxide/
+# Check hydroxide binary
+if [ ! -f "/protonmail/hydroxide" ]; then
+  echo "[$(date '+%F %T')] ERROR: /protonmail/hydroxide not found!"
+  ls -la /protonmail/ || true
+  exit 1
+fi
+
+echo "[$(date '+%F %T')] INFO: hydroxide binary found:"
+ls -la /protonmail/hydroxide
+/protonmail/hydroxide --version 2>/dev/null || echo "(version flag not supported)"
+
+# Set up data directory
 mkdir -p /data/.config/hydroxide
 export HOME=/data
 export XDG_CONFIG_HOME=/data/.config
+echo "[$(date '+%F %T')] INFO: Data directory: /data/.config/hydroxide"
 
-log_info "Data directory: /data/.config/hydroxide"
-
-# --- Check if already authenticated ---
 AUTH_FILE="/data/.config/hydroxide/auth"
 if [ -f "${AUTH_FILE}" ]; then
-    log_info "Existing hydroxide auth found - starting bridge directly"
+  echo "[$(date '+%F %T')] INFO: Existing auth found - starting bridge directly"
 else
-    log_info "No auth found - authenticating with ProtonMail..."
-    log_info "Username: ${USERNAME}"
-    log_info ""
-    log_info "Authenticating via hydroxide..."
+  echo "[$(date '+%F %T')] INFO: No auth found - authenticating..."
+  echo "[$(date '+%F %T')] INFO: Running: hydroxide auth ${USERNAME}"
 
-    # hydroxide auth reads username/password from stdin
-    printf '%s\n%s\n' "${USERNAME}" "${PASSWORD}" \
-        | /protonmail/hydroxide auth "${USERNAME}" 2>&1 | tee /tmp/hydroxide_auth.log
+  # Run auth with credentials piped in (non-interactive)
+  AUTH_OUTPUT=$(printf '%s\n%s\n' "${USERNAME}" "${PASSWORD}" | \
+    /protonmail/hydroxide auth "${USERNAME}" 2>&1) || true
 
-    if grep -q "bridge password" /tmp/hydroxide_auth.log 2>/dev/null; then
-        BRIDGE_PASS=$(grep "bridge password" /tmp/hydroxide_auth.log | awk '{print $NF}')
-        log_info ""
-        log_info "============================================================"
-        log_info " BRIDGE PASSWORD: ${BRIDGE_PASS}"
-        log_info " Use this password in Home Assistant SMTP config!"
-        log_info " (NOT your ProtonMail account password)"
-        log_info "============================================================"
-        log_info ""
-    else
-        log_warning "Could not extract bridge password from auth output."
-        log_warning "Check logs above for the bridge password."
-    fi
+  echo "[$(date '+%F %T')] INFO: Auth output:"
+  echo "${AUTH_OUTPUT}"
+  echo "---"
+
+  # Extract bridge password if present
+  if echo "${AUTH_OUTPUT}" | grep -qi "bridge password"; then
+    BRIDGE_PASS=$(echo "${AUTH_OUTPUT}" | grep -i "bridge password" | awk '{print $NF}')
+    echo "[$(date '+%F %T')] =================================================="
+    echo "[$(date '+%F %T')] BRIDGE PASSWORD: ${BRIDGE_PASS}"
+    echo "[$(date '+%F %T')] Use this in IMAP/SMTP clients, NOT your PM password"
+    echo "[$(date '+%F %T')] =================================================="
+  fi
+
+  if [ ! -f "${AUTH_FILE}" ]; then
+    echo "[$(date '+%F %T')] WARNING: Auth file not created after auth attempt."
+    echo "[$(date '+%F %T')] WARNING: Continuing anyway to try bridge start..."
+  fi
 fi
 
-# --- Port forwarding via socat ---
-log_info "Starting socat port forwarders (SMTP 25->1025, IMAP 143->1143)"
-socat TCP-LISTEN:25,fork,reuseaddr TCP:127.0.0.1:1025 &
-SOCAT_SMTP_PID=$!
-socat TCP-LISTEN:143,fork,reuseaddr TCP:127.0.0.1:1143 &
-SOCAT_IMAP_PID=$!
+# Start socat port forwarders
+echo "[$(date '+%F %T')] INFO: Starting socat forwarders..."
+if command -v socat &>/dev/null; then
+  socat TCP-LISTEN:25,fork,reuseaddr TCP:127.0.0.1:1025 &
+  SOCAT_SMTP=$!
+  socat TCP-LISTEN:143,fork,reuseaddr TCP:127.0.0.1:1143 &
+  SOCAT_IMAP=$!
+  echo "[$(date '+%F %T')] INFO: socat SMTP PID=${SOCAT_SMTP}, IMAP PID=${SOCAT_IMAP}"
+else
+  echo "[$(date '+%F %T')] WARNING: socat not found, ports 25/143 not forwarded"
+fi
 
-# --- Start hydroxide bridge ---
-log_info "Launching hydroxide serve (SMTP + IMAP)"
-log_info "SMTP available on port 25 (->1025)"
-log_info "IMAP available on port 143 (->1143)"
-log_info ""
+# Start hydroxide serve
+echo "[$(date '+%F %T')] INFO: Starting hydroxide serve..."
+echo "[$(date '+%F %T')] INFO: SMTP on port 25 (->1025), IMAP on port 143 (->1143)"
 
-set +o errexit
 /protonmail/hydroxide serve 2>&1
 EXIT_CODE=$?
 
-log_error "hydroxide exited with code: ${EXIT_CODE}"
-log_error ""
-log_error "Troubleshooting:"
-log_error " 1. Wrong credentials: correct username/password in add-on config"
-log_error " 2. 2FA account: hydroxide may need interactive 2FA on first run"
-log_error " 3. Delete /data/.config/hydroxide/auth to force re-authentication"
-
-# Clean up socat
-kill ${SOCAT_SMTP_PID} ${SOCAT_IMAP_PID} 2>/dev/null || true
+echo "[$(date '+%F %T')] ERROR: hydroxide exited with code: ${EXIT_CODE}"
+kill ${SOCAT_SMTP:-0} ${SOCAT_IMAP:-0} 2>/dev/null || true
 exit ${EXIT_CODE}
