@@ -22,6 +22,10 @@ ports_description:
 options:
     username: null
     password: null
+    totp_code: ""
+    mailbox_password: ""
 schema:
     username: str
     password: password
+    totp_code: str?
+    mailbox_password: password?
