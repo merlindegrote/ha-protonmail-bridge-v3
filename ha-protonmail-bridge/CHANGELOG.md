@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.22.4
+
+### Bug fixes
+
+- Fix authentication failure with passwords containing special characters (Tcl metacharacters)
+- Pass ProtonMail password via environment variable (PMPASSWORD) instead of command-line argument to avoid Tcl special-character interpretation in expect script
+
 ## 1.4.0
 
 ### 🚀 Improvements
