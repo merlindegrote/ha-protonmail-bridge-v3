@@ -85,6 +85,9 @@ if [ -z "${BRIDGE_PASS}" ]; then
   exit 3
 fi
 
+log "BRIDGE PASSWORD: ${BRIDGE_PASS}"
+log "Use this in IMAP/SMTP clients (not your ProtonMail account password)"
+
 IMAP_HOST="${IMAP_HOST:-127.0.0.1}"
 IMAP_PORT="${IMAP_PORT:-1143}"
 SMTP_HOST="${SMTP_HOST:-127.0.0.1}"

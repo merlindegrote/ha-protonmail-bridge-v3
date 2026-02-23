@@ -45,8 +45,9 @@ RUN apk add --no-cache \
 
 # Copy scripts
 COPY run.sh /run.sh
+COPY run_auth.sh /run_auth.sh
 COPY auth.expect /auth.expect
-RUN chmod a+x /run.sh /auth.expect
+RUN chmod a+x /run.sh /run_auth.sh /auth.expect
 
 # Labels
 LABEL \

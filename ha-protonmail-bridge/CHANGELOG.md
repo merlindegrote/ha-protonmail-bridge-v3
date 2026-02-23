@@ -24,6 +24,7 @@
 ### ✅ Misc updates
 
 - Add Dutch translations for configuration options and improve existing EN/FR descriptions
+- Include `run_auth.sh` in the image and log the generated bridge password to `/data/hydroxide-auth.log`
 
 ## 1.4.0
 
