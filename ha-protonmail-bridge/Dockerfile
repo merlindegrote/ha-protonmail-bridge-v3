@@ -1,3 +1,7 @@
+# Global ARGs - must be declared before any FROM to be usable across all stages
+ARG BUILD_FROM
+ARG BUILD_ARCH
+
 # Build stage: compile hydroxide for the target architecture
 # Go supports cross-compilation natively - the builder always runs on amd64 (GHA)
 # but produces binaries for the target platform via GOARCH/GOARM env vars.
@@ -15,9 +19,10 @@ RUN apk add --no-cache git ca-certificates \
  && chmod +x /hydroxide
 
 # Runtime stage: HA base image (armv7/aarch64/amd64 as specified by build.json)
-ARG BUILD_FROM
-ARG BUILD_ARCH
 FROM $BUILD_FROM
+# Redeclare ARGs after FROM to make them available in this stage
+ARG BUILD_ARCH
+ARG BUILD_VERSION
 
 # Override s6-overlay /init with a pass-through script.
 # HA base images (3.x) use s6-overlay v3. With init: false in config.yaml,
@@ -47,7 +52,6 @@ EXPOSE 143/tcp
 WORKDIR /
 SHELL ["/bin/bash", "-c"]
 ENV LOG_TIMESTAMP "%F %T.%3N"
-ARG BUILD_VERSION
 LABEL \
  io.hass.version="${BUILD_VERSION}" \
  io.hass.type="addon" \
