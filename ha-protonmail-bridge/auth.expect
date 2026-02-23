@@ -31,7 +31,7 @@ if {$username eq ""} {
 }
 
 log_user 1
-set timeout 60
+set timeout 180
 
 # Avoid clipping long lines from hydroxide output
 match_max 4096
@@ -46,6 +46,7 @@ expect {
             # In single-password mode, use login password as mailbox password
             send -- "$password\r"
         }
+        set timeout 180
         exp_continue
     }
     -re {(?i)(two-factor|2fa).*code:} {
@@ -55,10 +56,12 @@ expect {
             puts "EXPECT_ERROR: 2FA code required but PMTOTP env var not set"
             exit 1
         }
+        set timeout 180
         exp_continue
     }
     -re {(?i)password:} {
         send -- "$password\r"
+        set timeout 180
         exp_continue
     }
     -re {(?i)\[8002\].*password is not correct} {
@@ -83,7 +86,7 @@ expect {
         puts "EXPECT_EOF: done"
     }
     timeout {
-        puts "EXPECT_TIMEOUT: hydroxide auth timed out after 60s"
+        puts "EXPECT_TIMEOUT: hydroxide auth timed out after 180s"
         exit 1
     }
 }

@@ -26,6 +26,12 @@
 - Add Dutch translations for configuration options and improve existing EN/FR descriptions
 - Include `run_auth.sh` in the image and log the generated bridge password to `/data/hydroxide-auth.log`
 
+## 3.22.4.003
+
+### 🐛 Bug fixes
+
+- Increase `hydroxide auth` timeout in expect to avoid premature failures on slow logins
+
 ## 1.4.0
 
 ### 🚀 Improvements
