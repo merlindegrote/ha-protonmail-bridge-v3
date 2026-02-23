@@ -5,11 +5,14 @@
 
 set username [lindex $argv 0]
 
-# Read credentials from environment variables
-if {[info exists env(PMPASSWORD)]} {
-    set password $env(PMPASSWORD)
-} else {
-    puts "ERROR: PMPASSWORD environment variable not set"
+# Read password from stdin (more robust for special characters)
+gets stdin password
+if {[eof stdin]} {
+    puts "ERROR: password not provided via stdin"
+    exit 1
+}
+if {$password eq ""} {
+    puts "ERROR: password is empty"
     exit 1
 }
 

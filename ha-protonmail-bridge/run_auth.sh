@@ -68,7 +68,8 @@ fi
 log "Starting hydroxide auth for ${USERNAME}"
 
 set +e
-PMPASSWORD="${PASSWORD}" PMTOTP="${TOTP_CODE}" PMMAILBOX="${MAILBOX_PASSWORD}" PMDEBUG_AUTH="${DEBUG_AUTH}" \
+# Pass password via stdin to avoid shell escaping issues with special characters
+echo "${PASSWORD}" | PMTOTP="${TOTP_CODE}" PMMAILBOX="${MAILBOX_PASSWORD}" PMDEBUG_AUTH="${DEBUG_AUTH}" \
   /auth.expect "${USERNAME}" 2>&1 | tee -a "${LOG_FILE}"
 EXPECT_EXIT=${PIPESTATUS[0]}
 set -e

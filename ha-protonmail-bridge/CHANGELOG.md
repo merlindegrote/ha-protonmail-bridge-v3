@@ -44,6 +44,12 @@
 
 - Match the Password prompt reliably in expect to prevent auth timeouts
 
+## 3.22.4.006
+
+### 🐛 Bug fixes
+
+- Pass password via stdin instead of environment variable to handle special characters (%, etc.) correctly
+
 ## 1.4.0
 
 ### 🚀 Improvements
