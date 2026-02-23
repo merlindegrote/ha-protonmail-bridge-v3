@@ -6,6 +6,7 @@ description: Send emails using your ProtonMail account via Bridge v3.x
 url: https://github.com/merlindegrote/ha-protonmail-bridge-v3
 boot: auto
 startup: system
+init: false
 arch:
     - aarch64
     - amd64
