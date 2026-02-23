@@ -1,4 +1,4 @@
-#!/usr/bin/env bashio
+#!/usr/bin/with-contenv bashio
 # =============================================================================
 # ProtonMail Bridge - Home Assistant Add-on run script (via hydroxide)
 # =============================================================================
