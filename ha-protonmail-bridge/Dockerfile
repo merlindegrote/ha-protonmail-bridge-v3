@@ -41,7 +41,8 @@ RUN chmod +x /protonmail/hydroxide
 # Install runtime dependencies (socat for port forwarding, ca-certs for TLS)
 RUN apk add --no-cache \
  socat \
- ca-certificates
+ ca-certificates \
+    jq
 
 # Runtime script
 COPY run.sh /
