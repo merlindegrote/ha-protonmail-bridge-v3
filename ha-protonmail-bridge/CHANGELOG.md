@@ -14,6 +14,17 @@
 - Auth file path corrected to `auth.json` (hydroxide standard location)
 - Improved bridge password extraction from hydroxide output
 
+## 3.22.4.001
+
+### 📚 Documentation
+
+- Clarify optional fields (`totp_code`, `mailbox_password`) and where to find the generated bridge password
+- Add multi-language notes (EN/NL/FR) explaining that the bridge password does not appear in the config UI
+
+### ✅ Misc updates
+
+- Add Dutch translations for configuration options and improve existing EN/FR descriptions
+
 ## 1.4.0
 
 ### 🚀 Improvements
