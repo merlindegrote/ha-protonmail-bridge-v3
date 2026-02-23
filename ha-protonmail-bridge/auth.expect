@@ -1,16 +1,28 @@
 #!/usr/bin/expect -f
 # Hydroxide auth helper - called by run.sh
-# Usage: PMPASSWORD=<password> auth.expect <username>
-# Password is read from env var to avoid Tcl special-char interpretation
+# Usage: PMPASSWORD=<password> [PMTOTP=<totp_code>] [PMMAILBOX=<mailbox_password>] auth.expect <username>
+# Passwords are read from env vars to avoid Tcl special-character interpretation
 
 set username [lindex $argv 0]
 
-# Read password from environment variable to safely handle special characters
+# Read credentials from environment variables
 if {[info exists env(PMPASSWORD)]} {
     set password $env(PMPASSWORD)
 } else {
     puts "ERROR: PMPASSWORD environment variable not set"
     exit 1
+}
+
+# Optional: 2FA TOTP code (leave empty if no 2FA)
+set totp_code ""
+if {[info exists env(PMTOTP)]} {
+    set totp_code $env(PMTOTP)
+}
+
+# Optional: mailbox password for two-password mode (leave empty for single-password mode)
+set mailbox_password ""
+if {[info exists env(PMMAILBOX)]} {
+    set mailbox_password $env(PMMAILBOX)
 }
 
 if {$username eq ""} {
@@ -25,18 +37,35 @@ spawn /protonmail/hydroxide auth $username
 
 expect {
     "Password:" {
-        # Send password as literal string - env var avoids Tcl interpretation
         send -- "$password\r"
         exp_continue
     }
-    -re {bridge password[^\n]*\n} {
+    "2FA TOTP code:" {
+        if {$totp_code ne ""} {
+            send -- "$totp_code\r"
+        } else {
+            puts "EXPECT_ERROR: 2FA TOTP required but PMTOTP env var not set"
+            exit 1
+        }
+        exp_continue
+    }
+    "Mailbox password:" {
+        if {$mailbox_password ne ""} {
+            send -- "$mailbox_password\r"
+        } else {
+            # In single-password mode, use login password as mailbox password
+            send -- "$password\r"
+        }
+        exp_continue
+    }
+    -re {[Bb]ridge password[^\n]*\n} {
         set line $expect_out(0,string)
         puts "BRIDGE_LINE: $line"
         exp_continue
     }
-    -re {Your bridge password is[^\n]*\n} {
-        set line $expect_out(0,string)
-        puts "BRIDGE_LINE: $line"
+    -re {Bridge password: ([A-Za-z0-9+/=]{20,})\r?\n} {
+        set bp $expect_out(1,string)
+        puts "BRIDGE_LINE: Bridge password: $bp"
         exp_continue
     }
     eof {
