@@ -1,0 +1,43 @@
+#!/usr/bin/expect -f
+# Hydroxide auth helper - called by run.sh
+# Usage: auth.expect <username> <password>
+# Reads password interactively from hydroxide and writes auth file
+
+set username [lindex $argv 0]
+set password [lindex $argv 1]
+
+if {$username eq "" || $password eq ""} {
+    puts "ERROR: Usage: auth.expect <username> <password>"
+    exit 1
+}
+
+log_user 1
+set timeout 30
+
+spawn /protonmail/hydroxide auth $username
+
+expect {
+    "Password:" {
+        send "$password\r"
+        exp_continue
+    }
+    -re {bridge password[^\n]*\n} {
+        set line $expect_out(0,string)
+        puts "BRIDGE_LINE: $line"
+        exp_continue
+    }
+    -re {Your bridge password is[^\n]*\n} {
+        set line $expect_out(0,string)
+        puts "BRIDGE_LINE: $line"
+        exp_continue
+    }
+    eof {
+        puts "EXPECT_EOF: done"
+    }
+    timeout {
+        puts "EXPECT_TIMEOUT: hydroxide auth timed out after 30s"
+        exit 1
+    }
+}
+
+puts "EXPECT_DONE"
