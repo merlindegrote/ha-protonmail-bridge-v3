@@ -8,7 +8,7 @@ configuration:
     description: Your ProtonMail account password. The IMAP/SMTP bridge password is generated automatically and shown after authentication.
   totp_code:
     name: 2FA code
-    description: Optional one-time 2FA/TOTP code. Only needed if your ProtonMail account has 2FA enabled.
+    description: Optional one-time 2FA/TOTP code. Only needed if your ProtonMail account has 2FA enabled. Enter a fresh code right before starting the add-on.
   mailbox_password:
     name: Mailbox password
-    description: Only for ProtonMail two-password mode. Leave empty in single-password mode.
+    description: Only for ProtonMail two-password mode (separate mailbox password). Leave empty in single-password mode.

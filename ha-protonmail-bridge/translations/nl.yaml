@@ -8,7 +8,7 @@ configuration:
     description: Het wachtwoord van je ProtonMail account. Het IMAP/SMTP bridge-wachtwoord wordt automatisch gegenereerd en getoond na authenticatie.
   totp_code:
     name: 2FA code
-    description: Optionele 2FA/TOTP code. Alleen nodig als 2FA is ingeschakeld.
+    description: Optionele 2FA/TOTP code. Alleen nodig als 2FA is ingeschakeld. Gebruik een verse code vlak voor het starten van de add-on.
   mailbox_password:
     name: Mailbox wachtwoord
-    description: Alleen voor ProtonMail in twee-wachtwoorden modus. Laat leeg in de standaard modus.
+    description: Alleen voor ProtonMail in twee-wachtwoorden modus (apart mailbox-wachtwoord). Laat leeg in de standaard modus.

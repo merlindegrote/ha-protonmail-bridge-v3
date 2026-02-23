@@ -8,7 +8,7 @@ configuration:
     description: Le mot de passe de votre compte ProtonMail. Le mot de passe IMAP/SMTP est genere automatiquement et s'affiche apres l'authentification.
   totp_code:
     name: code 2FA
-    description: Code 2FA/TOTP optionnel. Necessaire uniquement si la 2FA est activee sur votre compte.
+    description: Code 2FA/TOTP optionnel. Necessaire uniquement si la 2FA est activee sur votre compte. Utilisez un code recent juste avant de demarrer l'addon.
   mailbox_password:
     name: mot de passe de la boite
-    description: Utilise uniquement en mode ProtonMail a deux mots de passe. Laissez vide en mode standard.
+    description: Utilise uniquement en mode ProtonMail a deux mots de passe (mot de passe de boite separe). Laissez vide en mode standard.
