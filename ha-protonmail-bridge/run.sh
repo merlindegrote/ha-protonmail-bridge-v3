@@ -1,19 +1,11 @@
 #!/usr/bin/env bash
 # ProtonMail Bridge via hydroxide - HA Add-on run script
-# All output also written to /data/debug.log for troubleshooting
+# Uses /auth.expect for non-interactive authentication (no /dev/tty needed)
 
 DEBUG_LOG="/data/debug.log"
 exec > >(tee -a "${DEBUG_LOG}") 2>&1
 
 echo "[$(date '+%F %T')] === Starting ProtonMail Bridge add-on ==="
-
-# Fix: create /dev/tty if missing (needed for hydroxide auth)
-# hydroxide uses Go's term.ReadPassword which opens /dev/tty directly
-if [ ! -e /dev/tty ]; then
-  echo "[$(date '+%F %T')] INFO: Creating /dev/tty device node"
-  mknod -m 666 /dev/tty c 5 0 2>/dev/null || \
-    echo "[$(date '+%F %T')] WARNING: Could not create /dev/tty"
-fi
 
 # --- Read config ---
 OPTIONS_FILE="/data/options.json"
@@ -24,12 +16,6 @@ if [ ! -f "${OPTIONS_FILE}" ]; then
 fi
 
 echo "[$(date '+%F %T')] INFO: /data/options.json exists"
-
-# Install jq if missing
-if ! command -v jq &>/dev/null; then
-  echo "[$(date '+%F %T')] INFO: Installing jq..."
-  apk add --no-cache jq || true
-fi
 
 USERNAME=$(jq -r '.username // empty' "${OPTIONS_FILE}" 2>/dev/null)
 PASSWORD=$(jq -r '.password // empty' "${OPTIONS_FILE}" 2>/dev/null)
@@ -53,34 +39,38 @@ if [ ! -f "/protonmail/hydroxide" ]; then
   exit 1
 fi
 
+# Check expect script
+if [ ! -f "/auth.expect" ]; then
+  echo "[$(date '+%F %T')] ERROR: /auth.expect not found!"
+  exit 1
+fi
+
 # Set up data directory
 mkdir -p /data/.config/hydroxide
 export HOME=/data
 export XDG_CONFIG_HOME=/data/.config
 
 AUTH_FILE="/data/.config/hydroxide/auth"
+
 if [ -f "${AUTH_FILE}" ]; then
   echo "[$(date '+%F %T')] INFO: Existing auth found - starting bridge directly"
 else
-  echo "[$(date '+%F %T')] INFO: No auth found - authenticating..."
-  echo "[$(date '+%F %T')] INFO: Running: hydroxide auth ${USERNAME}"
-  echo "[$(date '+%F %T')] INFO: /dev/tty exists: $([ -e /dev/tty ] && echo YES || echo NO)"
+  echo "[$(date '+%F %T')] INFO: No auth found - authenticating via expect..."
 
-  # Run auth with credentials piped via /dev/tty
-  # hydroxide opens /dev/tty directly, so we use a heredoc with redirected input
-  # and also ensure /dev/tty is available
-  AUTH_OUTPUT=$(printf '%s\n%s\n' "${USERNAME}" "${PASSWORD}" | \
-    /protonmail/hydroxide auth "${USERNAME}" < /dev/tty 2>&1) || \
-  AUTH_OUTPUT=$(printf '%s\n%s\n' "${USERNAME}" "${PASSWORD}" | \
-    /protonmail/hydroxide auth "${USERNAME}" 2>&1) || true
+  # Call the expect script with username and password as arguments
+  AUTH_OUTPUT=$(/auth.expect "${USERNAME}" "${PASSWORD}" 2>&1) || true
 
   echo "[$(date '+%F %T')] INFO: Auth output:"
   echo "${AUTH_OUTPUT}"
   echo "---"
 
-  # Extract bridge password if present
-  if echo "${AUTH_OUTPUT}" | grep -qi "bridge password"; then
-    BRIDGE_PASS=$(echo "${AUTH_OUTPUT}" | grep -i "bridge password" | awk '{print $NF}')
+  # Extract bridge password from output
+  BRIDGE_PASS=$(echo "${AUTH_OUTPUT}" | grep -i "bridge password" | grep -oE '[A-Za-z0-9]{8,}' | tail -1)
+  if [ -z "${BRIDGE_PASS}" ]; then
+    BRIDGE_PASS=$(echo "${AUTH_OUTPUT}" | grep -i "BRIDGE_LINE" | grep -oE '[A-Za-z0-9]{8,}$' | tail -1)
+  fi
+
+  if [ -n "${BRIDGE_PASS}" ]; then
     echo "[$(date '+%F %T')] =================================================="
     echo "[$(date '+%F %T')] BRIDGE PASSWORD: ${BRIDGE_PASS}"
     echo "[$(date '+%F %T')] Use this in IMAP/SMTP clients, NOT your PM password"
@@ -108,10 +98,8 @@ fi
 # Start hydroxide serve
 echo "[$(date '+%F %T')] INFO: Starting hydroxide serve..."
 echo "[$(date '+%F %T')] INFO: SMTP on port 25 (->1025), IMAP on port 143 (->1143)"
-
 /protonmail/hydroxide serve 2>&1
 EXIT_CODE=$?
-
 echo "[$(date '+%F %T')] ERROR: hydroxide exited with code: ${EXIT_CODE}"
 kill ${SOCAT_SMTP:-0} ${SOCAT_IMAP:-0} 2>/dev/null || true
 exit ${EXIT_CODE}
