@@ -12,3 +12,6 @@ configuration:
   mailbox_password:
     name: Mailbox password
     description: Only for ProtonMail two-password mode (separate mailbox password). Leave empty in single-password mode.
+  debug_auth:
+    name: Debug auth
+    description: Enable verbose auth diagnostics. Extra details appear in the normal add-on logs.

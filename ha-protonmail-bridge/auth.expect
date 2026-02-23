@@ -36,6 +36,12 @@ set timeout 180
 # Avoid clipping long lines from hydroxide output
 match_max 4096
 
+# Optional verbose expect debugging
+if {[info exists env(PMDEBUG_AUTH)] && $env(PMDEBUG_AUTH) == "1"} {
+    exp_internal 1
+    puts "EXPECT_DEBUG: enabled"
+}
+
 spawn /protonmail/hydroxide auth $username
 
 expect {

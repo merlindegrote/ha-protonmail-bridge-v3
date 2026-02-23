@@ -12,3 +12,6 @@ configuration:
   mailbox_password:
     name: mot de passe de la boite
     description: Utilise uniquement en mode ProtonMail a deux mots de passe (mot de passe de boite separe). Laissez vide en mode standard.
+  debug_auth:
+    name: Debug auth
+    description: Active le debug d'authentification. Les details s'affichent dans les logs normaux de l'addon.

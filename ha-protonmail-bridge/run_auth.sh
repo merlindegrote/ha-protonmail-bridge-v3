@@ -35,6 +35,7 @@ USERNAME="${PM_USERNAME:-$(read_opt '.username')}"
 PASSWORD="${PM_PASSWORD:-$(read_opt '.password')}"
 TOTP_CODE="${PM_TOTP:-$(read_opt '.totp_code')}"
 MAILBOX_PASSWORD="${PM_MAILBOX_PASSWORD:-$(read_opt '.mailbox_password')}"
+DEBUG_AUTH="${PM_DEBUG_AUTH:-$(read_opt '.debug_auth')}"
 
 if [ -z "${USERNAME}" ]; then
   log_err "username not configured"
@@ -54,10 +55,20 @@ if [ ! -f "/auth.expect" ]; then
   exit 1
 fi
 
+if [ "${DEBUG_AUTH}" = "true" ] || [ "${DEBUG_AUTH}" = "1" ]; then
+  DEBUG_AUTH=1
+else
+  DEBUG_AUTH=0
+fi
+
+if [ ${DEBUG_AUTH} -eq 1 ]; then
+  log "Auth debug enabled: /data/hydroxide-auth.raw.log"
+fi
+
 log "Starting hydroxide auth for ${USERNAME}"
 
 set +e
-PMPASSWORD="${PASSWORD}" PMTOTP="${TOTP_CODE}" PMMAILBOX="${MAILBOX_PASSWORD}" \
+PMPASSWORD="${PASSWORD}" PMTOTP="${TOTP_CODE}" PMMAILBOX="${MAILBOX_PASSWORD}" PMDEBUG_AUTH="${DEBUG_AUTH}" \
   /auth.expect "${USERNAME}" 2>&1 | tee -a "${LOG_FILE}"
 EXPECT_EXIT=${PIPESTATUS[0]}
 set -e

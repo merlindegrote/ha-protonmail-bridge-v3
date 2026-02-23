@@ -32,6 +32,12 @@
 
 - Increase `hydroxide auth` timeout in expect to avoid premature failures on slow logins
 
+## 3.22.4.004
+
+### ✅ Misc updates
+
+- Add `debug_auth` toggle and route verbose auth diagnostics to normal add-on logs
+
 ## 1.4.0
 
 ### 🚀 Improvements

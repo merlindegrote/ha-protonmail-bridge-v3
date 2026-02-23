@@ -12,3 +12,6 @@ configuration:
   mailbox_password:
     name: Mailbox wachtwoord
     description: Alleen voor ProtonMail in twee-wachtwoorden modus (apart mailbox-wachtwoord). Laat leeg in de standaard modus.
+  debug_auth:
+    name: Debug auth
+    description: Zet extra auth logging aan. Extra details verschijnen in de normale add-on logs.
