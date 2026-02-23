@@ -56,27 +56,22 @@ if [ -f "${AUTH_FILE}" ]; then
   echo "[$(date '+%F %T')] INFO: Existing auth found - starting bridge directly"
 else
   echo "[$(date '+%F %T')] INFO: No auth found - authenticating via expect..."
-
-  # Call the expect script with username and password as arguments
-  AUTH_OUTPUT=$(/auth.expect "${USERNAME}" "${PASSWORD}" 2>&1) || true
-
+  # Pass password via env var to avoid Tcl special-character interpretation
+  AUTH_OUTPUT=$(PMPASSWORD="${PASSWORD}" /auth.expect "${USERNAME}" 2>&1) || true
   echo "[$(date '+%F %T')] INFO: Auth output:"
   echo "${AUTH_OUTPUT}"
   echo "---"
-
   # Extract bridge password from output
   BRIDGE_PASS=$(echo "${AUTH_OUTPUT}" | grep -i "bridge password" | grep -oE '[A-Za-z0-9]{8,}' | tail -1)
   if [ -z "${BRIDGE_PASS}" ]; then
     BRIDGE_PASS=$(echo "${AUTH_OUTPUT}" | grep -i "BRIDGE_LINE" | grep -oE '[A-Za-z0-9]{8,}$' | tail -1)
   fi
-
   if [ -n "${BRIDGE_PASS}" ]; then
     echo "[$(date '+%F %T')] =================================================="
     echo "[$(date '+%F %T')] BRIDGE PASSWORD: ${BRIDGE_PASS}"
     echo "[$(date '+%F %T')] Use this in IMAP/SMTP clients, NOT your PM password"
     echo "[$(date '+%F %T')] =================================================="
   fi
-
   if [ ! -f "${AUTH_FILE}" ]; then
     echo "[$(date '+%F %T')] WARNING: Auth file not created. Check output above."
     echo "[$(date '+%F %T')] WARNING: Starting hydroxide anyway (will need auth file)"
