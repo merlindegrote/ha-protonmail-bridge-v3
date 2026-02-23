@@ -7,6 +7,13 @@
 - Fix authentication failure with passwords containing special characters (Tcl metacharacters)
 - Pass ProtonMail password via environment variable (PMPASSWORD) instead of command-line argument to avoid Tcl special-character interpretation in expect script
 
+### New features
+
+- Add optional 2FA TOTP support: set `totp_code` in add-on configuration for ProtonMail accounts with two-factor authentication
+- Add optional mailbox password support: set `mailbox_password` for ProtonMail accounts using legacy two-password mode
+- Auth file path corrected to `auth.json` (hydroxide standard location)
+- Improved bridge password extraction from hydroxide output
+
 ## 1.4.0
 
 ### 🚀 Improvements
