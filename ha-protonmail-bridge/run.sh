@@ -7,6 +7,14 @@ exec > >(tee -a "${DEBUG_LOG}") 2>&1
 
 echo "[$(date '+%F %T')] === Starting ProtonMail Bridge add-on ==="
 
+# Fix: create /dev/tty if missing (needed for hydroxide auth)
+# hydroxide uses Go's term.ReadPassword which opens /dev/tty directly
+if [ ! -e /dev/tty ]; then
+  echo "[$(date '+%F %T')] INFO: Creating /dev/tty device node"
+  mknod -m 666 /dev/tty c 5 0 2>/dev/null || \
+    echo "[$(date '+%F %T')] WARNING: Could not create /dev/tty"
+fi
+
 # --- Read config ---
 OPTIONS_FILE="/data/options.json"
 if [ ! -f "${OPTIONS_FILE}" ]; then
@@ -15,8 +23,7 @@ if [ ! -f "${OPTIONS_FILE}" ]; then
   exit 1
 fi
 
-echo "[$(date '+%F %T')] INFO: /data/options.json exists:"
-cat "${OPTIONS_FILE}"
+echo "[$(date '+%F %T')] INFO: /data/options.json exists"
 
 # Install jq if missing
 if ! command -v jq &>/dev/null; then
@@ -46,15 +53,10 @@ if [ ! -f "/protonmail/hydroxide" ]; then
   exit 1
 fi
 
-echo "[$(date '+%F %T')] INFO: hydroxide binary found:"
-ls -la /protonmail/hydroxide
-/protonmail/hydroxide --version 2>/dev/null || echo "(version flag not supported)"
-
 # Set up data directory
 mkdir -p /data/.config/hydroxide
 export HOME=/data
 export XDG_CONFIG_HOME=/data/.config
-echo "[$(date '+%F %T')] INFO: Data directory: /data/.config/hydroxide"
 
 AUTH_FILE="/data/.config/hydroxide/auth"
 if [ -f "${AUTH_FILE}" ]; then
@@ -62,8 +64,13 @@ if [ -f "${AUTH_FILE}" ]; then
 else
   echo "[$(date '+%F %T')] INFO: No auth found - authenticating..."
   echo "[$(date '+%F %T')] INFO: Running: hydroxide auth ${USERNAME}"
+  echo "[$(date '+%F %T')] INFO: /dev/tty exists: $([ -e /dev/tty ] && echo YES || echo NO)"
 
-  # Run auth with credentials piped in (non-interactive)
+  # Run auth with credentials piped via /dev/tty
+  # hydroxide opens /dev/tty directly, so we use a heredoc with redirected input
+  # and also ensure /dev/tty is available
+  AUTH_OUTPUT=$(printf '%s\n%s\n' "${USERNAME}" "${PASSWORD}" | \
+    /protonmail/hydroxide auth "${USERNAME}" < /dev/tty 2>&1) || \
   AUTH_OUTPUT=$(printf '%s\n%s\n' "${USERNAME}" "${PASSWORD}" | \
     /protonmail/hydroxide auth "${USERNAME}" 2>&1) || true
 
@@ -81,8 +88,8 @@ else
   fi
 
   if [ ! -f "${AUTH_FILE}" ]; then
-    echo "[$(date '+%F %T')] WARNING: Auth file not created after auth attempt."
-    echo "[$(date '+%F %T')] WARNING: Continuing anyway to try bridge start..."
+    echo "[$(date '+%F %T')] WARNING: Auth file not created. Check output above."
+    echo "[$(date '+%F %T')] WARNING: Starting hydroxide anyway (will need auth file)"
   fi
 fi
 
