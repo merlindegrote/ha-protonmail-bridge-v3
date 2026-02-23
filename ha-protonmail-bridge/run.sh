@@ -19,6 +19,10 @@ echo "[$(date '+%F %T')] INFO: /data/options.json exists"
 
 USERNAME=$(jq -r '.username // empty' "${OPTIONS_FILE}" 2>/dev/null)
 PASSWORD=$(jq -r '.password // empty' "${OPTIONS_FILE}" 2>/dev/null)
+# Optional: TOTP code for 2FA accounts (leave empty if no 2FA)
+TOTP_CODE=$(jq -r '.totp_code // empty' "${OPTIONS_FILE}" 2>/dev/null)
+# Optional: mailbox password for two-password mode accounts
+MAILBOX_PASSWORD=$(jq -r '.mailbox_password // empty' "${OPTIONS_FILE}" 2>/dev/null)
 
 if [ -z "${USERNAME}" ]; then
   echo "[$(date '+%F %T')] ERROR: username not configured!"
@@ -31,6 +35,8 @@ fi
 
 echo "[$(date '+%F %T')] INFO: Username: ${USERNAME}"
 echo "[$(date '+%F %T')] INFO: Password length: ${#PASSWORD}"
+[ -n "${TOTP_CODE}" ] && echo "[$(date '+%F %T')] INFO: TOTP code provided (2FA mode)"
+[ -n "${MAILBOX_PASSWORD}" ] && echo "[$(date '+%F %T')] INFO: Mailbox password provided (two-password mode)"
 
 # Check hydroxide binary
 if [ ! -f "/protonmail/hydroxide" ]; then
@@ -50,21 +56,22 @@ mkdir -p /data/.config/hydroxide
 export HOME=/data
 export XDG_CONFIG_HOME=/data/.config
 
-AUTH_FILE="/data/.config/hydroxide/auth"
+AUTH_FILE="/data/.config/hydroxide/auth.json"
 
 if [ -f "${AUTH_FILE}" ]; then
   echo "[$(date '+%F %T')] INFO: Existing auth found - starting bridge directly"
 else
   echo "[$(date '+%F %T')] INFO: No auth found - authenticating via expect..."
-  # Pass password via env var to avoid Tcl special-character interpretation
-  AUTH_OUTPUT=$(PMPASSWORD="${PASSWORD}" /auth.expect "${USERNAME}" 2>&1) || true
+  # Pass credentials via env vars to avoid Tcl special-character interpretation
+  AUTH_OUTPUT=$(PMPASSWORD="${PASSWORD}" PMTOTP="${TOTP_CODE}" PMMAILBOX="${MAILBOX_PASSWORD}" \
+    /auth.expect "${USERNAME}" 2>&1) || true
   echo "[$(date '+%F %T')] INFO: Auth output:"
   echo "${AUTH_OUTPUT}"
   echo "---"
   # Extract bridge password from output
-  BRIDGE_PASS=$(echo "${AUTH_OUTPUT}" | grep -i "bridge password" | grep -oE '[A-Za-z0-9]{8,}' | tail -1)
+  BRIDGE_PASS=$(echo "${AUTH_OUTPUT}" | grep -i "BRIDGE_LINE" | grep -oP '(?<=password: )[A-Za-z0-9+/=]{20,}' | tail -1)
   if [ -z "${BRIDGE_PASS}" ]; then
-    BRIDGE_PASS=$(echo "${AUTH_OUTPUT}" | grep -i "BRIDGE_LINE" | grep -oE '[A-Za-z0-9]{8,}$' | tail -1)
+    BRIDGE_PASS=$(echo "${AUTH_OUTPUT}" | grep -i "bridge password" | grep -oE '[A-Za-z0-9+/=]{20,}' | tail -1)
   fi
   if [ -n "${BRIDGE_PASS}" ]; then
     echo "[$(date '+%F %T')] =================================================="
