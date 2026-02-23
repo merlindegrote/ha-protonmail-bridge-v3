@@ -5,16 +5,19 @@ ARG BUILD_ARCH
 # Build stage: compile hydroxide for the target architecture
 # Go supports cross-compilation natively - the builder always runs on amd64 (GHA)
 # but produces binaries for the target platform via GOARCH/GOARM env vars.
-FROM --platform=$BUILDPLATFORM golang:1.22-alpine AS builder
+# hydroxide 0.2.31 requires go >= 1.24
+FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS builder
 ARG HYDROXIDE_VERSION="0.2.31"
 ARG TARGETARCH
 ARG TARGETVARIANT
 # Build hydroxide - pure Go, CGO disabled for cross-compile
+# Use printf+sh-safe substring extraction (${TARGETVARIANT#v} is bash-only)
 RUN apk add --no-cache git ca-certificates \
  && git clone --depth=1 --branch "v${HYDROXIDE_VERSION}" \
  https://github.com/emersion/hydroxide.git /tmp/hydroxide \
  && cd /tmp/hydroxide \
- && GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT#v} CGO_ENABLED=0 \
+ && GOARM=$(echo "${TARGETVARIANT}" | cut -c2-) \
+ GOARCH=${TARGETARCH} CGO_ENABLED=0 \
  go build -ldflags='-s -w' -o /hydroxide ./cmd/hydroxide \
  && chmod +x /hydroxide
 
