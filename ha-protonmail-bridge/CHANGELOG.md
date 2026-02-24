@@ -89,6 +89,12 @@
 - Detect ProtonMail API errors (e.g. [2001] Invalid email address) instead of silently failing
 - Only extract bridge password from properly formatted BRIDGE_LINE markers to prevent false positives
 
+## 3.22.4.012
+
+### 🐛 Bug fix / Behavioural change
+
+- `bridge_password` is now truly optional: removed from the default options in `config.yaml` so Home Assistant no longer requires it on install. The field is only added after the first successful login, just like other optional fields. No handmatige invoer meer nodig en geen validatiefout meer bij installatie.
+
 ## 1.4.0
 
 ### 🚀 Improvements
