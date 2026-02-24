@@ -50,6 +50,14 @@
 
 - Pass password via stdin instead of environment variable to handle special characters (%, etc.) correctly
 
+## 3.22.4.007
+
+### 🐛 Bug fixes
+
+- Fix false positive errors when "password:" appears in "Bridge password:" output
+- Improve password prompt matching to avoid sending password multiple times
+- Validate auth success by checking EXPECT_ERROR markers instead of broad log grepping
+
 ## 1.4.0
 
 ### 🚀 Improvements

@@ -74,14 +74,15 @@ echo "${PASSWORD}" | PMTOTP="${TOTP_CODE}" PMMAILBOX="${MAILBOX_PASSWORD}" PMDEB
 EXPECT_EXIT=${PIPESTATUS[0]}
 set -e
 
+if grep -q "EXPECT_ERROR" "${LOG_FILE}"; then
+  ERROR_MSG=$(grep "EXPECT_ERROR" "${LOG_FILE}" | head -n 1 | sed 's/EXPECT_ERROR: //')
+  log_err "${ERROR_MSG}"
+  exit 2
+fi
+
 if [ ${EXPECT_EXIT} -ne 0 ]; then
   log_err "hydroxide auth failed (expect exit ${EXPECT_EXIT})"
   exit ${EXPECT_EXIT}
-fi
-
-if grep -Fq "[8002]" "${LOG_FILE}" || grep -qi "password is not correct" "${LOG_FILE}"; then
-  log_err "ProtonMail rejected the password ([8002])"
-  exit 2
 fi
 
 BRIDGE_PASS=$(grep -i -E "bridge password|imap/smtp password|imap password|smtp password" "${LOG_FILE}" \
