@@ -58,6 +58,12 @@
 - Improve password prompt matching to avoid sending password multiple times
 - Validate auth success by checking EXPECT_ERROR markers instead of broad log grepping
 
+## 3.22.4.008
+
+### 🐛 Bug fixes
+
+- Invalidate saved credentials when username changes to force re-authentication
+
 ## 1.4.0
 
 ### 🚀 Improvements

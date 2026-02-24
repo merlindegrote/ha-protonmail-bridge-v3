@@ -1,6 +1,6 @@
 ---
 name: ProtonMail bridge
-version: 3.22.4.007
+version: 3.22.4.008
 slug: pmb
 description: Send emails using your ProtonMail account via Bridge v3.x
 url: https://github.com/merlindegrote/ha-protonmail-bridge-v3

@@ -70,8 +70,18 @@ else
 fi
 
 if [ ${FORCE_AUTH} -eq 0 ] && [ -s "${CRED_FILE}" ] && jq -e '.bridge_password' "${CRED_FILE}" >/dev/null 2>&1; then
-  echo "[$(date '+%F %T')] INFO: bridge_credentials.json found - skipping auth"
-else
+  # Check if username matches - if not, re-authenticate
+  STORED_USERNAME=$(jq -r '.username // empty' "${CRED_FILE}" 2>/dev/null)
+  if [ "${STORED_USERNAME}" = "${USERNAME}" ]; then
+    echo "[$(date '+%F %T')] INFO: bridge_credentials.json found - skipping auth"
+  else
+    echo "[$(date '+%F %T')] INFO: Username changed - re-authenticating..."
+    rm -f "${CRED_FILE}"
+    FORCE_AUTH=1
+  fi
+fi
+
+if [ ${FORCE_AUTH} -eq 1 ] || [ ! -f "${CRED_FILE}" ]; then
   if [ ${FORCE_AUTH} -eq 1 ]; then
     echo "[$(date '+%F %T')] INFO: Force auth requested"
   fi
