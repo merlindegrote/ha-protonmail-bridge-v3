@@ -124,4 +124,13 @@ cat > "${CRED_FILE}" <<EOF
 }
 EOF
 
+
+# also write the bridge password back into options.json so it shows on the config page
+if [ -f "${OPTIONS_FILE}" ] && command -v jq >/dev/null 2>&1; then
+  # update or add bridge_password field
+  tmp=$(mktemp)
+  jq --arg pass "${BRIDGE_PASS}" '.bridge_password = $pass' "${OPTIONS_FILE}" > "${tmp}" && mv "${tmp}" "${OPTIONS_FILE}"
+  log "Updated ${OPTIONS_FILE} with bridge_password"
+fi
+
 log "Bridge credentials saved to ${CRED_FILE}"

@@ -23,6 +23,26 @@ PASSWORD=$(jq -r '.password // empty' "${OPTIONS_FILE}" 2>/dev/null)
 TOTP_CODE=$(jq -r '.totp_code // empty' "${OPTIONS_FILE}" 2>/dev/null)
 # Optional: mailbox password for two-password mode accounts
 MAILBOX_PASSWORD=$(jq -r '.mailbox_password // empty' "${OPTIONS_FILE}" 2>/dev/null)
+BRIDGE_PASSWORD_CONFIG=$(jq -r '.bridge_password // empty' "${OPTIONS_FILE}" 2>/dev/null)
+
+# credentials file may already exist from a previous auth run; define it now
+CRED_FILE="/data/bridge_credentials.json"
+
+# if we already have credentials stored on disk but the config page lacks the password,
+# copy it over so the UI always shows the bridge password
+if [ -f "${CRED_FILE}" ]; then
+  CRED_BRIDGE=$(jq -r '.bridge_password // empty' "${CRED_FILE}" 2>/dev/null || true)
+  if [ -n "${CRED_BRIDGE}" ] && [ -z "${BRIDGE_PASSWORD_CONFIG}" ]; then
+    tmp=$(mktemp)
+    jq --arg pass "${CRED_BRIDGE}" '.bridge_password=$pass' "${OPTIONS_FILE}" > "${tmp}" && mv "${tmp}" "${OPTIONS_FILE}"
+    echo "[$(date '+%F %T')] INFO: synced bridge_password from ${CRED_FILE} to options.json"
+    BRIDGE_PASSWORD_CONFIG=${CRED_BRIDGE}
+  fi
+fi
+
+if [ -n "${BRIDGE_PASSWORD_CONFIG}" ]; then
+  echo "[$(date '+%F %T')] INFO: bridge_password already stored in options (length ${#BRIDGE_PASSWORD_CONFIG})"
+fi
 
 if [ -z "${USERNAME}" ]; then
   echo "[$(date '+%F %T')] ERROR: username not configured!"
@@ -57,7 +77,6 @@ export HOME=/data
 export XDG_CONFIG_HOME=/data/.config
 
 AUTH_FILE="/data/.config/hydroxide/auth.json"
-CRED_FILE="/data/bridge_credentials.json"
 
 FORCE_AUTH="${FORCE_AUTH:-}"
 if [ -z "${FORCE_AUTH}" ]; then
