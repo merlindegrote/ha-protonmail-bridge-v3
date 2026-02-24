@@ -64,6 +64,13 @@
 
 - Invalidate saved credentials when username changes to force re-authentication
 
+## 3.22.4.009
+
+### 🐛 Bug fixes
+
+- Detect ProtonMail API errors (e.g. [2001] Invalid email address) instead of silently failing
+- Only extract bridge password from properly formatted BRIDGE_LINE markers to prevent false positives
+
 ## 1.4.0
 
 ### 🚀 Improvements

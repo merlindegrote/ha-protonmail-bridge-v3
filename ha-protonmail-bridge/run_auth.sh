@@ -85,16 +85,12 @@ if [ ${EXPECT_EXIT} -ne 0 ]; then
   exit ${EXPECT_EXIT}
 fi
 
-BRIDGE_PASS=$(grep -i -E "bridge password|imap/smtp password|imap password|smtp password" "${LOG_FILE}" \
-  | tail -n 1 \
-  | sed -E 's/.*: *//; s/\r//g; s/[^A-Za-z0-9+\/=].*$//')
+BRIDGE_PASS=$(grep "^BRIDGE_LINE:" "${LOG_FILE}" \
+  | head -n 1 \
+  | sed -E 's/BRIDGE_LINE: (Bridge password|IMAP\/SMTP password): //; s/\r//g; s/[^A-Za-z0-9+\/=].*$//')
 
 if [ -z "${BRIDGE_PASS}" ]; then
-  BRIDGE_PASS=$(grep -Eo "[A-Za-z0-9+\/=]{20,}" "${LOG_FILE}" | tail -n 1)
-fi
-
-if [ -z "${BRIDGE_PASS}" ]; then
-  log_err "bridge password not found in hydroxide output"
+  log_err "bridge password not found in hydroxide output (auth may have failed)"
   exit 3
 fi
 

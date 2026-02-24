@@ -87,6 +87,15 @@ expect {
         puts "EXPECT_ERROR: [8002] The password is not correct"
         exit 2
     }
+    -re {(?i)\[2001\].*invalid.*email} {
+        puts "EXPECT_ERROR: [2001] Invalid email address"
+        exit 2
+    }
+    -re {(?i)request failed.*\[[0-9]{4}\]} {
+        set err $expect_out(0,string)
+        puts "EXPECT_ERROR: $err"
+        exit 2
+    }
     -re {(?i)request failed.*password is not correct} {
         puts "EXPECT_ERROR: The password is not correct"
         exit 2
