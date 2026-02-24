@@ -97,7 +97,7 @@ supervisor.
 
 **Belangrijk (NL)**: het bridge-wachtwoord wordt **niet meer alleen in de logs getoond** – er is nu een extra configuratieoptie `bridge_password` die automatisch wordt ingevuld na de eerste succesvolle login. Je hoeft dus niet in de logs te zoeken. (het bestand `/data/bridge_credentials.json` bevat het nog steeds voor backup).
 
-**Important (EN)**: the bridge password is now shown in the add-on configuration page under the `bridge_password` setting. It is filled automatically after the first successful login, so you don’t have to inspect the logs anymore. `/data/bridge_credentials.json` still contains the same information.
+**Important (EN)**: the bridge password is now shown in the add-on configuration page under the `bridge_password` setting. The option is **optional** and will be populated automatically after the first successful login – you do not need to provide it manually. `/data/bridge_credentials.json` still contains the same information as a backup.
 
 **Important (FR)**: le mot de passe bridge ne s'affiche pas dans la page de configuration. Apres le premier demarrage, il est visible dans les logs de l'addon et dans `/data/bridge_credentials.json`.
 

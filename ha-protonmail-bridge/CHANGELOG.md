@@ -58,6 +58,24 @@
 - Improve password prompt matching to avoid sending password multiple times
 - Validate auth success by checking EXPECT_ERROR markers instead of broad log grepping
 
+## 3.22.4.010
+
+### ✨ Enhancements
+
+- Add `bridge_password` field to add‑on configuration page; the bridge SMTP/IMAP password is now
+  visible in the UI after the first successful authentication.
+- Make `bridge_password` optional (no longer required by config validation); the field is
+  automatically injected into `/data/options.json` by the auth script and synchronized from
+  `bridge_credentials.json` if missing.
+- Bump add‑on version so Home Assistant shows the update.
+
+## 3.22.4.011
+
+### 🔧 Maintenance
+
+- Incremented version number for minor revision; no user-facing changes.
+
+
 ## 3.22.4.008
 
 ### 🐛 Bug fixes

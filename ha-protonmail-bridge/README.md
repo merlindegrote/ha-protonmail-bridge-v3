@@ -79,7 +79,7 @@ Kort: gebruik in je mailclient het automatisch gegenereerde bridge-wachtwoord, n
 
 **Belangrijk**: het bridge-wachtwoord verschijnt nu **in de add-on configuratiepagina** onder de nieuwe optie `bridge_password`. Je hoeft het dus niet meer in de logs te zoeken; het wordt automatisch ingevuld na de eerste succesvolle login (en bij een herauthenticatie).
 
-**Important (EN)**: the bridge password now **appears on the add-on configuration page** in the `bridge_password` field. You no longer need to check the logs; it will be filled automatically after the first successful login (and on re‑authentication).
+**Important (EN)**: the bridge password now **appears on the add-on configuration page** in the `bridge_password` field. It is **optional** and is added automatically after the first successful login (or when the credentials are refreshed). You do **not** need to enter anything yourself.
 
 **Important (FR)**: le mot de passe bridge ne se trouve pas dans la page de configuration. Apres le premier demarrage, vous le trouverez dans les logs de l'addon et dans `/data/bridge_credentials.json`.
 

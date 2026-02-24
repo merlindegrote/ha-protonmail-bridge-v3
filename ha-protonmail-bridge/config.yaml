@@ -1,6 +1,6 @@
 ---
 name: ProtonMail bridge
-version: 3.22.4.010
+version: 3.22.4.011
 slug: pmb
 description: Send emails using your ProtonMail account via Bridge v3.x
 url: https://github.com/merlindegrote/ha-protonmail-bridge-v3
@@ -34,4 +34,6 @@ schema:
     mailbox_password: password?
     debug_auth: bool?
     # display the generated bridge password (read‑only) on the config page
+    # this setting is optional and will be added automatically after the first successful
+    # authentication; you should never have to supply it manually.
     bridge_password: str?
